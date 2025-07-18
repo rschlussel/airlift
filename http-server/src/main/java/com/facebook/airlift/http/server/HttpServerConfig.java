@@ -82,6 +82,14 @@ public class HttpServerConfig
     private String secureRandomAlgorithm;
     private List<String> includedCipherSuites = ImmutableList.of();
 
+    private boolean additionalHttpsPortEnabled;
+    private int additionalHttpsPort = 8444;
+    private String additionalKeystorePath;
+    private String additionalKeystorePassword;
+    private String additionalKeyManagerPassword;
+    private String additionalTrustStorePath;
+    private String additionalTrustStorePassword;
+
     /**
      * This property is initialized with Jetty's default excluded ciphers list.
      * @see org.eclipse.jetty.util.ssl.SslContextFactory#SslContextFactory(boolean, String)
@@ -179,6 +187,18 @@ public class HttpServerConfig
         return this;
     }
 
+    public boolean isAdditionalHttpsPortEnabled()
+    {
+        return additionalHttpsPortEnabled;
+    }
+
+    @Config("http-server.https.additional-port-enabled")
+    public HttpServerConfig setAdditionalHttpsPortEnabled(boolean additionalHttpsPortEnabled)
+    {
+        this.additionalHttpsPortEnabled = additionalHttpsPortEnabled;
+        return this;
+    }
+
     @Config("http-server.https.sni-host-check")
     public HttpServerConfig setSniHostCheck(boolean sniHostCheck)
     {
@@ -200,6 +220,18 @@ public class HttpServerConfig
     public HttpServerConfig setHttpsPort(int httpsPort)
     {
         this.httpsPort = httpsPort;
+        return this;
+    }
+
+    public int getAdditionalHttpsPort()
+    {
+        return additionalHttpsPort;
+    }
+
+    @Config("http-server.https.additional-port")
+    public HttpServerConfig setAdditionalHttpsPort(int httpsPort)
+    {
+        this.additionalHttpsPort = httpsPort;
         return this;
     }
 
@@ -254,6 +286,31 @@ public class HttpServerConfig
         return this;
     }
 
+    public String getAdditionalKeystorePath()
+    {
+        return additionalKeystorePath;
+    }
+
+    @Config("http-server.https.keystore.additional-path")
+    public HttpServerConfig setAdditionalKeystorePath(String keystorePath)
+    {
+        this.additionalKeystorePath = keystorePath;
+        return this;
+    }
+
+    public String getAdditionalKeystorePassword()
+    {
+        return additionalKeystorePassword;
+    }
+
+    @Config("http-server.https.keystore.additional-key")
+    @ConfigSecuritySensitive
+    public HttpServerConfig setAdditionalKeystorePassword(String keystorePassword)
+    {
+        this.additionalKeystorePassword = keystorePassword;
+        return this;
+    }
+
     public String getKeyManagerPassword()
     {
         return keyManagerPassword;
@@ -264,6 +321,19 @@ public class HttpServerConfig
     public HttpServerConfig setKeyManagerPassword(String keyManagerPassword)
     {
         this.keyManagerPassword = keyManagerPassword;
+        return this;
+    }
+
+    public String getAdditionalKeyManagerPassword()
+    {
+        return additionalKeyManagerPassword;
+    }
+
+    @Config("http-server.https.keymanager.additional-password")
+    @ConfigSecuritySensitive
+    public HttpServerConfig setAdditionalKeyManagerPassword(String additionalKeyManagerPassword)
+    {
+        this.additionalKeyManagerPassword = additionalKeyManagerPassword;
         return this;
     }
 
@@ -279,6 +349,18 @@ public class HttpServerConfig
         return this;
     }
 
+    public String getAdditionalTrustStorePath()
+    {
+        return additionalTrustStorePath;
+    }
+
+    @Config("http-server.https.truststore.additional-path")
+    public HttpServerConfig setAdditionalTrustStorePath(String additionalTrustStorePath)
+    {
+        this.additionalTrustStorePath = additionalTrustStorePath;
+        return this;
+    }
+
     public String getTrustStorePassword()
     {
         return trustStorePassword;
@@ -289,6 +371,19 @@ public class HttpServerConfig
     public HttpServerConfig setTrustStorePassword(String trustStorePassword)
     {
         this.trustStorePassword = trustStorePassword;
+        return this;
+    }
+
+    public String getAdditionalTrustStorePassword()
+    {
+        return additionalTrustStorePassword;
+    }
+
+    @Config("http-server.https.truststore.additional-key")
+    @ConfigSecuritySensitive
+    public HttpServerConfig setAdditionalTrustStorePassword(String additionalTrustStorePassword)
+    {
+        this.additionalTrustStorePath = additionalTrustStorePassword;
         return this;
     }
 

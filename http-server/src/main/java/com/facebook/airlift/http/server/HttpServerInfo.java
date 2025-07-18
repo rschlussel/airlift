@@ -42,6 +42,10 @@ public class HttpServerInfo
     private final ServerSocketChannel httpChannel;
     private final ServerSocketChannel httpsChannel;
     private final ServerSocketChannel adminChannel;
+    private final ServerSocketChannel httpsAdditionalChannel;
+
+    private final URI httpsAdditionalUri;
+    private final URI httpsAdditionalExternalUri;
 
     @Inject
     public HttpServerInfo(HttpServerConfig config, NodeInfo nodeInfo)
@@ -66,6 +70,17 @@ public class HttpServerInfo
             httpsChannel = null;
             httpsUri = null;
             httpsExternalUri = null;
+        }
+
+        if (config.isAdditionalHttpsPortEnabled()) {
+            httpsAdditionalChannel = createChannel(nodeInfo.getBindIp(), config.getAdditionalHttpsPort(), config.getHttpAcceptQueueSize());
+            httpsAdditionalUri = buildUri("https", nodeInfo.getInternalAddress(), port(httpsAdditionalChannel));
+            httpsAdditionalExternalUri = buildUri("https", nodeInfo.getExternalAddress(), httpsAdditionalUri.getPort());
+        }
+        else {
+            httpsAdditionalChannel = null;
+            httpsAdditionalUri = null;
+            httpsAdditionalExternalUri = null;
         }
 
         if (config.isAdminEnabled()) {
@@ -163,5 +178,20 @@ public class HttpServerInfo
         catch (IOException e) {
             throw new UncheckedIOException(format("Failed to bind to %s:%s", address, port), e);
         }
+    }
+
+    public URI getHttpsAdditionalUri()
+    {
+        return httpsAdditionalUri;
+    }
+
+    public ServerSocketChannel getHttpsAdditionalChannel()
+    {
+        return httpsAdditionalChannel;
+    }
+
+    public URI getHttpsAdditionalExternalUri()
+    {
+        return httpsAdditionalExternalUri;
     }
 }

@@ -226,7 +226,7 @@ public class HttpServer
             httpsConfiguration.addCustomizer(new SecureRequestCustomizer(config.isSniHostCheck()));
 
             SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
-            Optional<KeyStore> pemKeyStore = tryLoadPemKeyStore(config);
+            Optional<KeyStore> pemKeyStore = tryLoadPemKeyStore(config.getKeystorePath(), config.getKeystorePassword());
             if (pemKeyStore.isPresent()) {
                 sslContextFactory.setKeyStore(pemKeyStore.get());
                 sslContextFactory.setKeyStorePassword("");
@@ -239,7 +239,7 @@ public class HttpServer
                 }
             }
             if (config.getTrustStorePath() != null) {
-                Optional<KeyStore> pemTrustStore = tryLoadPemTrustStore(config);
+                Optional<KeyStore> pemTrustStore = tryLoadPemTrustStore(config.getTrustStorePath());
                 if (pemTrustStore.isPresent()) {
                     sslContextFactory.setTrustStore(pemTrustStore.get());
                     sslContextFactory.setTrustStorePassword("");
@@ -285,6 +285,75 @@ public class HttpServer
             }
 
             server.addConnector(httpsConnector);
+        }
+
+        // set up NIO-based HTTPS connector
+        ServerConnector additionalHttpsConnector;
+        if (config.isAdditionalHttpsPortEnabled()) {
+            HttpConfiguration httpsConfiguration = new HttpConfiguration(baseHttpConfiguration);
+            httpsConfiguration.addCustomizer(new SecureRequestCustomizer(config.isSniHostCheck()));
+
+            SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+            Optional<KeyStore> pemKeyStore = tryLoadPemKeyStore(config.getAdditionalKeystorePath(), config.getAdditionalKeystorePassword());
+            if (pemKeyStore.isPresent()) {
+                sslContextFactory.setKeyStore(pemKeyStore.get());
+                sslContextFactory.setKeyStorePassword("");
+            }
+            else {
+                sslContextFactory.setKeyStorePath(config.getAdditionalKeystorePath());
+                sslContextFactory.setKeyStorePassword(config.getAdditionalKeystorePassword());
+                if (config.getAdditionalKeyManagerPassword() != null) {
+                    sslContextFactory.setKeyManagerPassword(config.getAdditionalKeyManagerPassword());
+                }
+            }
+            if (config.getAdditionalTrustStorePath() != null) {
+                Optional<KeyStore> pemTrustStore = tryLoadPemTrustStore(config.getAdditionalTrustStorePath());
+                if (pemTrustStore.isPresent()) {
+                    sslContextFactory.setTrustStore(pemTrustStore.get());
+                    sslContextFactory.setTrustStorePassword("");
+                }
+                else {
+                    sslContextFactory.setTrustStorePath(config.getAdditionalTrustStorePath());
+                    sslContextFactory.setTrustStorePassword(config.getAdditionalTrustStorePassword());
+                }
+            }
+
+            sslContextFactory.setIncludeCipherSuites(includedCipherSuites.toArray(new String[0]));
+            sslContextFactory.setExcludeCipherSuites(excludedCipherSuites.toArray(new String[0]));
+            sslContextFactory.setSecureRandomAlgorithm(config.getSecureRandomAlgorithm());
+            sslContextFactory.setWantClientAuth(true);
+            sslContextFactory.setSslSessionTimeout((int) config.getSslSessionTimeout().getValue(SECONDS));
+            sslContextFactory.setSslSessionCacheSize(config.getSslSessionCacheSize());
+            sslContextFactory.setRenegotiationAllowed(false);
+            SslConnectionFactory sslConnectionFactory = new SslConnectionFactory(sslContextFactory, "http/1.1");
+
+            Integer acceptors = config.getHttpsAcceptorThreads();
+            Integer selectors = config.getHttpsSelectorThreads();
+            additionalHttpsConnector = createServerConnector(
+                    httpServerInfo.getHttpsChannel(),
+                    server,
+                    null,
+                    concurrentScheduler,
+                    firstNonNull(acceptors, -1),
+                    firstNonNull(selectors, -1),
+                    sslConnectionFactory,
+                    new HttpConnectionFactory(httpsConfiguration));
+            additionalHttpsConnector.setName("https");
+            additionalHttpsConnector.setPort(httpServerInfo.getHttpsAdditionalUri().getPort());
+            additionalHttpsConnector.setIdleTimeout(config.getNetworkMaxIdleTime().toMillis());
+            additionalHttpsConnector.setHost(nodeInfo.getBindIp().getHostAddress());
+            additionalHttpsConnector.setAcceptQueueSize(config.getHttpAcceptQueueSize());
+
+            // track connection statistics
+            ConnectionStatistics connectionStats = new ConnectionStatistics();
+            additionalHttpsConnector.addBean(connectionStats);
+            this.httpsConnectionStats = new ConnectionStats(connectionStats);
+
+            if (channelListener != null) {
+                additionalHttpsConnector.addBean(channelListener);
+            }
+
+            server.addConnector(additionalHttpsConnector);
         }
 
         // set up NIO-based Admin connector
@@ -506,9 +575,9 @@ public class HttpServer
                 config.isLogCompressionEnabled());
     }
 
-    private static Optional<KeyStore> tryLoadPemKeyStore(HttpServerConfig config)
+    private static Optional<KeyStore> tryLoadPemKeyStore(String keyStorePath, String keystorePassword)
     {
-        File keyStoreFile = new File(config.getKeystorePath());
+        File keyStoreFile = new File(keyStorePath);
         try {
             if (!PemReader.isPem(keyStoreFile)) {
                 return Optional.empty();
@@ -519,16 +588,16 @@ public class HttpServer
         }
 
         try {
-            return Optional.of(PemReader.loadKeyStore(keyStoreFile, keyStoreFile, Optional.ofNullable(config.getKeystorePassword())));
+            return Optional.of(PemReader.loadKeyStore(keyStoreFile, keyStoreFile, Optional.ofNullable(keystorePassword)));
         }
         catch (IOException | GeneralSecurityException e) {
             throw new IllegalArgumentException("Error loading PEM key store: " + keyStoreFile, e);
         }
     }
 
-    private static Optional<KeyStore> tryLoadPemTrustStore(HttpServerConfig config)
+    private static Optional<KeyStore> tryLoadPemTrustStore(String trustStorePath)
     {
-        File trustStoreFile = new File(config.getTrustStorePath());
+        File trustStoreFile = new File(trustStorePath);
         try {
             if (!PemReader.isPem(trustStoreFile)) {
                 return Optional.empty();
